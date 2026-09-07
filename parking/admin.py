@@ -1,11 +1,11 @@
 from django.contrib import admin
 
-# Register your models here.
-
 from .models import (
     Vehicle,
     ParkingSlot,
     FixedParkingAllocation,
+    TemporaryVehicle,
+    TemporaryParkingAllocation,
 )
 
 
@@ -37,14 +37,15 @@ class ParkingSlotAdmin(admin.ModelAdmin):
         "id",
         "slot_number",
         "slot_type",
+        "parking_category",
         "community",
         "is_active",
     )
 
     list_filter = (
         "slot_type",
+        "parking_category",
         "is_active",
-        "community",
     )
 
     search_fields = (
@@ -62,6 +63,38 @@ class FixedParkingAllocationAdmin(admin.ModelAdmin):
         "is_active",
     )
 
+
+@admin.register(TemporaryVehicle)
+class TemporaryVehicleAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "vehicle_number",
+        "vehicle_type",
+        "gate_pass",
+    )
+
     list_filter = (
-        "is_active",
+        "vehicle_type",
+    )
+
+    search_fields = (
+        "vehicle_number",
+    )
+
+
+@admin.register(TemporaryParkingAllocation)
+class TemporaryParkingAllocationAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "temporary_vehicle",
+        "parking_slot",
+        "entry_time",
+        "exit_time",
+        "status",
+    )
+
+    list_filter = (
+        "status",
     )

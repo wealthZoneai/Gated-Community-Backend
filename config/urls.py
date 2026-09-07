@@ -20,4 +20,6 @@ urlpatterns = [
 
     path("api/amenities/", include("amenities.urls")),
 
+    path("api/visitors/", include("visitors.urls")),
+
 ]

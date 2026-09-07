@@ -88,7 +88,8 @@ class ParkingSlot(models.Model):
 
     parking_category = models.CharField(
         max_length=20,
-        choices=PARKING_CATEGORY_CHOICES
+        choices=PARKING_CATEGORY_CHOICES,
+        default="OWNED"
     )
 
     is_active = models.BooleanField(
