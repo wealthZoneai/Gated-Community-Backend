@@ -6,12 +6,19 @@ from .views import (
     UserProfileAPIView,
     UserProfileUpdateAPIView,
 
-
     UserListAPIView,
     UserCreateAPIView,
     UserDetailAPIView,
     UserUpdateAPIView,
     UserDeleteAPIView,
+
+    # OTP
+    SendOTPView,
+    VerifyOTPView,
+    ResetPasswordView,
+
+    SendPhoneOTPView,
+    VerifyPhoneOTPView,
 )
 
 urlpatterns = [
@@ -39,4 +46,23 @@ urlpatterns = [
     path("users/<int:pk>/update/", UserUpdateAPIView.as_view(), name="user-update"),
 
     path("users/<int:pk>/delete/", UserDeleteAPIView.as_view(), name="user-delete"),
+
+    # =========================================================
+    # OTP AUTHENTICATION
+    # =========================================================
+
+    path("send-otp/", SendOTPView.as_view(), name="send-otp"),
+
+    path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
+
+    path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
+
+    # =========================================================
+    # PHONE OTP AUTHENTICATION
+    # =========================================================
+
+    path("send-phone-otp/", SendPhoneOTPView.as_view(), name="send-phone-otp"),
+
+    path("verify-phone-otp/", VerifyPhoneOTPView.as_view(), name="verify-phone-otp"),
+
 ]

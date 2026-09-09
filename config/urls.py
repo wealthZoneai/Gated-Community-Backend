@@ -22,4 +22,10 @@ urlpatterns = [
 
     path("api/visitors/", include("visitors.urls")),
 
+    path("api/parking/", include("parking.urls")),
+
+    path("api/complaints/", include("complaints.urls")),
+
+    path("api/notices/", include("notices.urls")),
+
 ]

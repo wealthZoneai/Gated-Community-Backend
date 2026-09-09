@@ -5,8 +5,6 @@ from .models import UserCommunityRole, RolePermission
 
 class HasRequiredPermission(BasePermission):
 
-    required_permission = None
-
     def has_permission(self, request, view):
 
         if not request.user or not request.user.is_authenticated:
@@ -19,6 +17,14 @@ class HasRequiredPermission(BasePermission):
         )
 
         if not required_permission:
+
+            required_permission = getattr(
+                view,
+                "permission_map",
+                {}
+            ).get(request.method)
+
+        if not required_permission:
             return False
 
         user_roles = UserCommunityRole.objects.filter(
@@ -27,6 +33,9 @@ class HasRequiredPermission(BasePermission):
         )
 
         return RolePermission.objects.filter(
-            role__in=user_roles.values("role"),
+            role__in=user_roles.values_list(
+                "role",
+                flat=True
+            ),
             permission__code=required_permission
         ).exists()

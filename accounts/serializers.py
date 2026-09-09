@@ -7,7 +7,7 @@ from rest_framework import serializers
 from community.models import HomeMembership
 
 
-from .models import User
+from .models import User, UserOTP
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -175,3 +175,71 @@ class UserManagementSerializer(serializers.ModelSerializer):
         )
 
         return user
+
+
+# =========================================================
+# OTP SERIALIZERS
+# =========================================================
+
+class SendOTPSerializer(serializers.Serializer):
+
+    email = serializers.EmailField()
+
+    purpose = serializers.ChoiceField(
+        choices=UserOTP.PURPOSE_CHOICES
+    )
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+
+    email = serializers.EmailField()
+
+    otp = serializers.CharField(
+        max_length=6,
+        min_length=6
+    )
+
+    purpose = serializers.ChoiceField(
+        choices=UserOTP.PURPOSE_CHOICES
+    )
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+
+    email = serializers.EmailField()
+
+    new_password = serializers.CharField(
+        min_length=8,
+        write_only=True
+    )
+
+# =========================================================
+# PHONE OTP SERIALIZERS
+# =========================================================
+
+
+class SendPhoneOTPSerializer(serializers.Serializer):
+
+    phone_number = serializers.CharField(
+        max_length=20
+    )
+
+    purpose = serializers.ChoiceField(
+        choices=UserOTP.PURPOSE_CHOICES
+    )
+
+
+class VerifyPhoneOTPSerializer(serializers.Serializer):
+
+    phone_number = serializers.CharField(
+        max_length=20
+    )
+
+    otp = serializers.CharField(
+        max_length=6,
+        min_length=6
+    )
+
+    purpose = serializers.ChoiceField(
+        choices=UserOTP.PURPOSE_CHOICES
+    )

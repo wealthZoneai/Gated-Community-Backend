@@ -1,17 +1,45 @@
 # Virtual Environment
 venv/
+.venv/
+env/
 
-# Environment File
+# Environment Files
 .env
+.env.*
+!.env.example
 
 # Python Cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
 # Django
 *.log
 db.sqlite3
+db.sqlite3-journal
+
+# Static / Media
+staticfiles/
+media/
 
 # IDE
 .vscode/
 .idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build / Packaging
+build/
+dist/
+*.egg-info/
+
+# Secrets / Keys
+*.pem
+*.key

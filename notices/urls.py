@@ -1,13 +1,6 @@
 from django.urls import path
 
-from .views import (
-    NoticeCreateAPIView,
-    NoticeListAPIView,
-    NoticeDetailAPIView,
-    NoticeApproveAPIView,
-    NoticeRejectAPIView,
-)
-
+from .views import *
 
 urlpatterns = [
 
@@ -25,4 +18,13 @@ urlpatterns = [
 
     # REJECT NOTICE
     path("<int:pk>/reject/",NoticeRejectAPIView.as_view(),name="notice-reject"),
+
+    path( "<int:pk>/acknowledge/", NoticeAcknowledgeAPIView.as_view(),name="notice-acknowledge"),
+    
+   # List + Create
+    path( "announcements/",AnnouncementView.as_view() ),
+
+    # Get + Update + Delete
+    path("announcements/<int:pk>/",AnnouncementDetailView.as_view()),
+
 ]

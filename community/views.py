@@ -7,7 +7,10 @@ from rest_framework.views import APIView
 from accounts.models import User
 from django.utils import timezone
 
+from access.models import UserCommunityRole
+
 from access.permissions import HasRequiredPermission
+from . import services
 from .models import (
     Community,
     Block,
@@ -36,32 +39,51 @@ from .serializers import (
 
 class CommunityListAPIView(generics.ListAPIView):
 
-    queryset = Community.objects.all()
     serializer_class = CommunitySerializer
 
+    permission_classes = [
+        IsAuthenticated
+    ]
 
-# CREATE COMMUNITY
+    def get_queryset(self):
+
+        user = self.request.user
+
+        is_super_admin = UserCommunityRole.objects.filter(
+            user=user,
+            role__code="SUPER_ADMIN",
+            is_active=True
+        ).exists()
+
+        if is_super_admin:
+            return Community.objects.all()
+
+        community_ids = get_user_communities(user)
+
+        return Community.objects.filter(
+            id__in=community_ids
+        )
+
+
 class CommunityCreateAPIView(generics.CreateAPIView):
 
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
 
 
-# GET ONE COMMUNITY
+# ADD / KEEP THIS
 class CommunityDetailAPIView(generics.RetrieveAPIView):
 
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
 
 
-# UPDATE COMMUNITY
 class CommunityUpdateAPIView(generics.UpdateAPIView):
 
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
 
 
-# DELETE COMMUNITY
 class CommunityDeleteAPIView(generics.DestroyAPIView):
 
     queryset = Community.objects.all()
@@ -71,8 +93,30 @@ class CommunityDeleteAPIView(generics.DestroyAPIView):
 # GET ALL BLOCKS
 class BlockListAPIView(generics.ListAPIView):
 
-    queryset = Block.objects.all()
     serializer_class = BlockSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        is_super_admin = UserCommunityRole.objects.filter(
+            user=user,
+            role__code="SUPER_ADMIN",
+            is_active=True
+        ).exists()
+
+        if is_super_admin:
+            return Block.objects.all()
+
+        community_ids = get_user_communities(user)
+
+        return Block.objects.filter(
+            community_id__in=community_ids
+        )
 
 
 # CREATE BLOCK
@@ -80,6 +124,13 @@ class BlockCreateAPIView(generics.CreateAPIView):
 
     queryset = Block.objects.all()
     serializer_class = BlockSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "CREATE_BLOCK"
 
 
 # GET ONE BLOCK
@@ -95,12 +146,26 @@ class BlockUpdateAPIView(generics.UpdateAPIView):
     queryset = Block.objects.all()
     serializer_class = BlockSerializer
 
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "UPDATE_BLOCK"
+
 
 # DELETE BLOCK
 class BlockDeleteAPIView(generics.DestroyAPIView):
 
     queryset = Block.objects.all()
     serializer_class = BlockSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "DELETE_BLOCK"
 
 
 # =========================
@@ -111,8 +176,30 @@ class BlockDeleteAPIView(generics.DestroyAPIView):
 # GET ALL HOMES
 class HomeListAPIView(generics.ListAPIView):
 
-    queryset = Home.objects.all()
     serializer_class = HomeSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        is_super_admin = UserCommunityRole.objects.filter(
+            user=user,
+            role__code="SUPER_ADMIN",
+            is_active=True
+        ).exists()
+
+        if is_super_admin:
+            return Home.objects.all()
+
+        community_ids = get_user_communities(user)
+
+        return Home.objects.filter(
+            block__community_id__in=community_ids
+        )
 
 
 # CREATE HOME
@@ -120,6 +207,13 @@ class HomeCreateAPIView(generics.CreateAPIView):
 
     queryset = Home.objects.all()
     serializer_class = HomeSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "CREATE_HOME"
 
 
 # GET ONE HOME
@@ -135,12 +229,26 @@ class HomeUpdateAPIView(generics.UpdateAPIView):
     queryset = Home.objects.all()
     serializer_class = HomeSerializer
 
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "UPDATE_HOME"
+
 
 # DELETE HOME
 class HomeDeleteAPIView(generics.DestroyAPIView):
 
     queryset = Home.objects.all()
     serializer_class = HomeSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "DELETE_HOME"
 
 
 # =========================
@@ -151,8 +259,30 @@ class HomeDeleteAPIView(generics.DestroyAPIView):
 # GET ALL HOME MEMBERSHIPS
 class HomeMembershipListAPIView(generics.ListAPIView):
 
-    queryset = HomeMembership.objects.all()
     serializer_class = HomeMembershipSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        is_super_admin = UserCommunityRole.objects.filter(
+            user=user,
+            role__code="SUPER_ADMIN",
+            is_active=True
+        ).exists()
+
+        if is_super_admin:
+            return HomeMembership.objects.all()
+
+        community_ids = get_user_communities(user)
+
+        return HomeMembership.objects.filter(
+            home__block__community_id__in=community_ids
+        )
 
 
 # CREATE HOME MEMBERSHIP
@@ -160,6 +290,13 @@ class HomeMembershipCreateAPIView(generics.CreateAPIView):
 
     queryset = HomeMembership.objects.all()
     serializer_class = HomeMembershipSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "CREATE_HOME_MEMBERSHIP"
 
 
 # GET ONE HOME MEMBERSHIP
@@ -175,12 +312,26 @@ class HomeMembershipUpdateAPIView(generics.UpdateAPIView):
     queryset = HomeMembership.objects.all()
     serializer_class = HomeMembershipSerializer
 
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "UPDATE_HOME_MEMBERSHIP"
+
 
 # DELETE HOME MEMBERSHIP
 class HomeMembershipDeleteAPIView(generics.DestroyAPIView):
 
     queryset = HomeMembership.objects.all()
     serializer_class = HomeMembershipSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        HasRequiredPermission
+    ]
+
+    required_permission = "DELETE_HOME_MEMBERSHIP"
 
 
 # =====================================
@@ -198,7 +349,9 @@ class PrimaryOwnerAssignAPIView(generics.CreateAPIView):
         HasRequiredPermission
     ]
 
-    required_permission = "ASSIGN_PRIMARY_OWNER"
+    permission_map = {
+        "POST": "ASSIGN_PRIMARY_OWNER"
+    }
 
     def perform_create(self, serializer):
 
@@ -441,114 +594,9 @@ class HouseholdInvitationCreateAPIView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
 
-        home = serializer.validated_data["home"]
-
-        membership_role = serializer.validated_data[
-            "membership_role"
-        ]
-
-        # =====================================
-        # CHECK COMMUNITY
-        # =====================================
-
-        community = home.block.community
-
-        # =====================================
-        # CHECK PRIMARY OWNER
-        # =====================================
-
-        is_primary_owner = HomeMembership.objects.filter(
-            user=self.request.user,
-            home=home,
-            membership_role="PRIMARY_OWNER",
-            status="ACTIVE",
-            can_manage_members=True
-        ).exists()
-
-        # =====================================
-        # CHECK COMMUNITY ADMIN
-        # =====================================
-
-        is_community_admin = UserCommunityRole.objects.filter(
-            user=self.request.user,
-            community=community,
-            role__code="COMMUNITY_ADMIN",
-            is_active=True
-        ).exists()
-
-        # =====================================
-        # PRIMARY OWNER PERMISSIONS
-        # =====================================
-
-        if is_primary_owner:
-
-            allowed_roles = [
-                "SECONDARY_MEMBER",
-                "TENANT",
-                "EXTENDED_HOUSEHOLD",
-            ]
-
-            if membership_role not in allowed_roles:
-
-                raise PermissionDenied(
-                    "Primary Owner cannot invite this role."
-                )
-
-        # =====================================
-        # COMMUNITY ADMIN PERMISSIONS
-        # =====================================
-
-        elif is_community_admin:
-
-            allowed_roles = [
-                "PRIMARY_OWNER",
-                "TENANT",
-            ]
-
-            if membership_role not in allowed_roles:
-
-                raise PermissionDenied(
-                    "Community Admin cannot invite this role."
-                )
-
-        # =====================================
-        # NO PERMISSION
-        # =====================================
-
-        else:
-
-            raise PermissionDenied(
-                "You do not have permission to invite "
-                "a member to this home."
-            )
-
-        # =====================================
-        # CHECK EMAIL
-        # =====================================
-
-        email = serializer.validated_data["email"]
-
-        # Prevent inviting an existing user
-        from accounts.models import User
-
-        user_exists = User.objects.filter(
-            email=email
-        ).exists()
-
-        if user_exists:
-
-            raise PermissionDenied(
-                "A user with this email already exists. "
-                "Please use the existing user workflow."
-            )
-
-        # =====================================
-        # CREATE INVITATION
-        # =====================================
-
-        serializer.save(
-            invited_by=self.request.user,
-            status="PENDING"
+        services.create_household_invitation(
+            serializer.validated_data,
+            self.request.user
         )
 
 
@@ -737,6 +785,7 @@ class HouseholdInvitationListAPIView(generics.ListAPIView):
             "-created_at"
         )
 
+
 class HomeMembersAPIView(APIView):
 
     permission_classes = [
@@ -789,6 +838,7 @@ class HomeMembersAPIView(APIView):
 
         return Response(serializer.data)
 
+
 class HomeMembershipDeactivateAPIView(APIView):
 
     permission_classes = [
@@ -840,6 +890,7 @@ class HomeMembershipDeactivateAPIView(APIView):
             "membership_role": membership.membership_role,
             "status": membership.status
         })
+
 
 class HomeMembershipReactivateAPIView(APIView):
 
