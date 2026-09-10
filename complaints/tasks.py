@@ -1,11 +1,14 @@
 from celery import shared_task
 from django.utils import timezone
-from django.contrib.auth.models import User
-
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from access.models import UserCommunityRole
 from .models import (
     Complaint,
     ComplaintEscalation
 )
+
+User = get_user_model()
 
 
 @shared_task
@@ -32,8 +35,10 @@ def check_complaint_sla():
             continue
 
         admins = User.objects.filter(
-            is_staff=True
-        )
+            community_roles__community=complaint.community,
+            community_roles__role__code="COMMUNITY_ADMIN",
+            community_roles__is_active=True
+        ).distinct()
 
         for admin in admins:
 
@@ -43,4 +48,13 @@ def check_complaint_sla():
                 reason="Complaint SLA breached"
             )
 
-            # Admin notification can be added here
+            send_mail(
+                subject="Complaint SLA Breached",
+                message=(
+                    f"Complaint #{complaint.id} has breached its SLA.\n\n"
+                    f"Reason: Complaint SLA breached"
+                ),
+                from_email=None,
+                recipient_list=[admin.email],
+                fail_silently=True,
+            )

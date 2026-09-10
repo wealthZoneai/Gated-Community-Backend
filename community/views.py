@@ -9,6 +9,15 @@ from django.utils import timezone
 
 from access.models import UserCommunityRole
 
+from community.services import (
+    create_household_invitation,
+    is_primary_owner_with_member_management,
+)
+from access.services import (
+    get_user_communities,
+    is_super_admin,
+    is_community_admin,
+)
 from access.permissions import HasRequiredPermission
 from . import services
 from .models import (
@@ -19,7 +28,6 @@ from .models import (
     HouseholdInvitation,
 )
 
-from access.models import UserCommunityRole
 
 from .serializers import (
     CommunitySerializer,
@@ -49,13 +57,9 @@ class CommunityListAPIView(generics.ListAPIView):
 
         user = self.request.user
 
-        is_super_admin = UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
             return Community.objects.all()
 
         community_ids = get_user_communities(user)
@@ -103,13 +107,9 @@ class BlockListAPIView(generics.ListAPIView):
 
         user = self.request.user
 
-        is_super_admin = UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
             return Block.objects.all()
 
         community_ids = get_user_communities(user)
@@ -186,13 +186,9 @@ class HomeListAPIView(generics.ListAPIView):
 
         user = self.request.user
 
-        is_super_admin = UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
             return Home.objects.all()
 
         community_ids = get_user_communities(user)
@@ -257,6 +253,7 @@ class HomeDeleteAPIView(generics.DestroyAPIView):
 
 
 # GET ALL HOME MEMBERSHIPS
+# GET ALL HOME MEMBERSHIPS
 class HomeMembershipListAPIView(generics.ListAPIView):
 
     serializer_class = HomeMembershipSerializer
@@ -269,13 +266,9 @@ class HomeMembershipListAPIView(generics.ListAPIView):
 
         user = self.request.user
 
-        is_super_admin = UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
             return HomeMembership.objects.all()
 
         community_ids = get_user_communities(user)
@@ -399,16 +392,12 @@ class AddHouseholdMemberAPIView(generics.CreateAPIView):
         ).first()
 
         # COMMUNITY ADMIN ROLE
-        from access.models import UserCommunityRole
-
         community = home.block.community
 
-        is_community_admin = UserCommunityRole.objects.filter(
-            user=self.request.user,
-            community=community,
-            role__code="COMMUNITY_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_community_admin = is_community_admin(
+            self.request.user,
+            community
+        )
 
         # PRIMARY OWNER
         if primary_owner:
@@ -425,7 +414,7 @@ class AddHouseholdMemberAPIView(generics.CreateAPIView):
                 )
 
         # COMMUNITY ADMIN
-        elif is_community_admin:
+        elif user_is_community_admin:
 
             # Admin can add only Tenant here
             if membership_role != "TENANT":
@@ -512,14 +501,12 @@ class TenantCreateAPIView(generics.CreateAPIView):
 
             return
 
-        is_community_admin = UserCommunityRole.objects.filter(
-            user=self.request.user,
-            community=home.block.community,
-            role__code="COMMUNITY_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_community_admin = is_community_admin(
+            self.request.user,
+            home.block.community
+        )
 
-        if is_community_admin:
+        if user_is_community_admin:
 
             serializer.save(
                 membership_role="TENANT",
@@ -812,14 +799,12 @@ class HomeMembersAPIView(APIView):
         ).exists()
 
         # Check Community Admin access
-        is_community_admin = UserCommunityRole.objects.filter(
-            user=request.user,
-            community=home.block.community,
-            role__code="COMMUNITY_ADMIN",
-            is_active=True
-        ).exists()
+        user_is_community_admin = is_community_admin(
+            request.user,
+            home.block.community
+        )
 
-        if not has_home_access and not is_community_admin:
+        if not has_home_access and not user_is_community_admin:
             raise PermissionDenied(
                 "You do not have permission to view members of this home."
             )
@@ -867,13 +852,10 @@ class HomeMembershipDeactivateAPIView(APIView):
             )
 
         # Check if logged-in user is Primary Owner
-        is_primary_owner = HomeMembership.objects.filter(
-            user=request.user,
-            home=membership.home,
-            membership_role="PRIMARY_OWNER",
-            status="ACTIVE",
-            can_manage_members=True
-        ).exists()
+        is_primary_owner = is_primary_owner_with_member_management(
+            request.user,
+            membership.home
+        )
 
         if not is_primary_owner:
             raise PermissionDenied(
@@ -914,13 +896,10 @@ class HomeMembershipReactivateAPIView(APIView):
             )
 
         # Check if logged-in user is Primary Owner
-        is_primary_owner = HomeMembership.objects.filter(
-            user=request.user,
-            home=membership.home,
-            membership_role="PRIMARY_OWNER",
-            status="ACTIVE",
-            can_manage_members=True
-        ).exists()
+        is_primary_owner = is_primary_owner_with_member_management(
+            request.user,
+            membership.home
+        )
 
         if not is_primary_owner:
             raise PermissionDenied(

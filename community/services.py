@@ -1,8 +1,8 @@
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
+from access.services import is_community_admin
 
 from accounts.models import User
-from access.models import UserCommunityRole
 
 from .models import (
     HomeMembership,
@@ -27,27 +27,18 @@ def create_household_invitation(
     # CHECK PRIMARY OWNER
     # =====================================
 
-    is_primary_owner = (
-        HomeMembership.objects.filter(
-            user=user,
-            home=home,
-            membership_role="PRIMARY_OWNER",
-            status="ACTIVE",
-            can_manage_members=True
-        ).exists()
+    is_primary_owner = is_primary_owner_with_member_management(
+        user,
+        home
     )
 
     # =====================================
     # CHECK COMMUNITY ADMIN
     # =====================================
 
-    is_community_admin = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            community=community,
-            role__code="COMMUNITY_ADMIN",
-            is_active=True
-        ).exists()
+    user_is_community_admin = is_community_admin(
+        user,
+        community
     )
 
     # =====================================
@@ -72,7 +63,7 @@ def create_household_invitation(
     # COMMUNITY ADMIN PERMISSIONS
     # =====================================
 
-    elif is_community_admin:
+    elif user_is_community_admin:
 
         allowed_roles = [
             "PRIMARY_OWNER",
@@ -120,3 +111,24 @@ def create_household_invitation(
     )
 
     return invitation
+
+# ==========================================
+# CHECK PRIMARY OWNER
+# ==========================================
+
+
+def is_primary_owner_with_member_management(user, home):
+
+    if not user or not user.is_authenticated:
+        return False
+
+    if not home:
+        return False
+
+    return HomeMembership.objects.filter(
+        user=user,
+        home=home,
+        membership_role="PRIMARY_OWNER",
+        status="ACTIVE",
+        can_manage_members=True
+    ).exists()

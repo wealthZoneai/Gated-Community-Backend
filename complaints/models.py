@@ -111,15 +111,16 @@ class ComplaintStatusHistory(models.Model):
 
 
 class ComplaintEscalation(models.Model):
-    complaint = models.ForeignKey(
-        Complaint,
-        on_delete=models.CASCADE
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE)
+    escalated_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="complaint_escalations"
     )
-
     reason = models.CharField(max_length=255)
-
     escalated_at = models.DateTimeField(auto_now_add=True)
-
     notified_admin = models.BooleanField(default=False)
 
     def __str__(self):

@@ -1,15 +1,27 @@
-from django.db import models
-
-from community.models import HomeMembership
-from access.models import UserCommunityRole
-
 from django.contrib.auth import get_user_model
 
+from community.models import HomeMembership
+
+from django.db import models
+
+from datetime import timedelta
+
+from django.utils import timezone
+
 from rest_framework.views import APIView
+
 from rest_framework.response import Response
+
 from rest_framework import status
 
 from access.permissions import HasRequiredPermission
+
+from access.models import UserCommunityRole
+
+from access.services import (
+    get_user_communities,
+    is_super_admin,
+)
 
 from .models import (
     ComplaintCategory,
@@ -23,45 +35,7 @@ from .serializers import (
     ComplaintStatusHistorySerializer
 )
 
-
 User = get_user_model()
-
-# ==========================================
-# HELPER FUNCTION
-# ==========================================
-
-
-def get_user_communities(user):
-
-    communities = set()
-
-    # Communities from UserCommunityRole
-    role_communities = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            is_active=True
-        ).values_list(
-            "community_id",
-            flat=True
-        )
-    )
-
-    communities.update(role_communities)
-
-    # Communities from HomeMembership
-    home_communities = (
-        HomeMembership.objects.filter(
-            user=user,
-            status="ACTIVE"
-        ).values_list(
-            "home__block__community_id",
-            flat=True
-        )
-    )
-
-    communities.update(home_communities)
-
-    return communities
 
 
 # ==========================================
@@ -110,14 +84,9 @@ class ComplaintCategoryView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
-# ==========================================
 # COMPLAINT LIST + CREATE
 # ==========================================
 
-# ==========================================
-# COMPLAINT LIST + CREATE
-# ==========================================
 
 class ComplaintView(APIView):
 
@@ -137,20 +106,9 @@ class ComplaintView(APIView):
     def get(self, request):
 
         user = request.user
+        user_is_super_admin = is_super_admin(user)
 
-        # ==========================================
-        # SUPER ADMIN
-        # ==========================================
-
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
-
-        if is_super_admin:
+        if user_is_super_admin:
 
             complaints = Complaint.objects.all()
 
@@ -201,23 +159,13 @@ class ComplaintView(APIView):
                 )
             )
 
-            # ==========================================
-            # SUPER ADMIN CHECK
-            # ==========================================
-
-            is_super_admin = (
-                UserCommunityRole.objects.filter(
-                    user=user,
-                    role__code="SUPER_ADMIN",
-                    is_active=True
-                ).exists()
-            )
+            user_is_super_admin = is_super_admin(user)
 
             # ==========================================
             # COMMUNITY ACCESS CHECK
             # ==========================================
 
-            if not is_super_admin:
+            if not user_is_super_admin:
 
                 community_ids = get_user_communities(
                     user
@@ -237,8 +185,14 @@ class ComplaintView(APIView):
             # CREATE COMPLAINT
             # ==========================================
 
+            category = serializer.validated_data["category"]
+
+
             complaint = serializer.save(
-                resident=user
+                resident=user,
+                sla_deadline=timezone.now() + timedelta(
+                    hours=category.sla_hours
+                )
             )
 
             return Response(
@@ -257,11 +211,6 @@ class ComplaintView(APIView):
 # ==========================================
 # COMPLAINT DETAIL
 # ==========================================
-
-# ==========================================
-# COMPLAINT DETAIL
-# ==========================================
-
 class ComplaintDetailView(APIView):
 
     permission_classes = [
@@ -281,15 +230,9 @@ class ComplaintDetailView(APIView):
 
     def get_queryset(self, user):
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
             return Complaint.objects.all()
 
         community_ids = get_user_communities(user)
@@ -362,15 +305,9 @@ class ComplaintDetailView(APIView):
 
             # Prevent non-super-admin from moving
             # complaint to another community
-            is_super_admin = (
-                UserCommunityRole.objects.filter(
-                    user=request.user,
-                    role__code="SUPER_ADMIN",
-                    is_active=True
-                ).exists()
-            )
+            user_is_super_admin = is_super_admin(request.user)
 
-            if new_community and not is_super_admin:
+            if new_community and not user_is_super_admin:
 
                 community_ids = get_user_communities(
                     request.user
@@ -459,15 +396,9 @@ class ComplaintStatusHistoryView(APIView):
 
         user = request.user
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Complaint.objects.all()
 

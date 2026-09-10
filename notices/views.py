@@ -3,6 +3,11 @@ from django.db import models
 from community.models import HomeMembership
 from access.models import UserCommunityRole
 
+from access.services import (
+    get_user_communities,
+    is_super_admin,
+)
+
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -24,48 +29,10 @@ from .serializers import (
     AnnouncementSerializer
 )
 
-# ==================================================
-# HELPER FUNCTION
-# ==================================================
-
-
-def get_user_communities(user):
-
-    communities = set()
-
-    # Communities from UserCommunityRole
-    role_communities = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            is_active=True
-        ).values_list(
-            "community_id",
-            flat=True
-        )
-    )
-
-    communities.update(role_communities)
-
-    # Communities from HomeMembership
-    home_communities = (
-        HomeMembership.objects.filter(
-            user=user,
-            status="ACTIVE"
-        ).values_list(
-            "home__block__community_id",
-            flat=True
-        )
-    )
-
-    communities.update(home_communities)
-
-    return communities
-
-
 # CREATE NOTICE
-class NoticeCreateAPIView(
-    generics.CreateAPIView
-):
+
+
+class NoticeCreateAPIView(generics.CreateAPIView):
 
     queryset = Notice.objects.all()
 
@@ -92,19 +59,13 @@ class NoticeCreateAPIView(
         # SUPER ADMIN
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # COMMUNITY ACCESS CHECK
         # ==========================================
 
-        if not is_super_admin:
+        if not user_is_super_admin:
 
             community_ids = get_user_communities(
                 user
@@ -117,10 +78,6 @@ class NoticeCreateAPIView(
                 raise PermissionDenied(
                     "You cannot create a notice for this community."
                 )
-
-        # ==========================================
-        # CREATE NOTICE
-        # ==========================================
 
         serializer.save(
             created_by=user
@@ -151,11 +108,7 @@ class NoticeListAPIView(
         # SUPER ADMIN
         # ==========================================
 
-        if UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists():
+        if is_super_admin(user):
 
             return Notice.objects.all().order_by(
                 "-created_at"
@@ -222,9 +175,7 @@ class NoticeListAPIView(
 
 
 # NOTICE DETAIL
-class NoticeDetailAPIView(
-    generics.RetrieveAPIView
-):
+class NoticeDetailAPIView(generics.RetrieveAPIView):
 
     serializer_class = NoticeSerializer
 
@@ -245,12 +196,7 @@ class NoticeDetailAPIView(
         # SUPER ADMIN
         # ==========================================
 
-        if UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-
-            is_active=True
-        ).exists():
+        if is_super_admin(user):
 
             return Notice.objects.all()
 
@@ -309,9 +255,7 @@ class NoticeDetailAPIView(
 
 
 # APPROVE NOTICE
-class NoticeApproveAPIView(
-    APIView
-):
+class NoticeApproveAPIView(APIView):
 
     permission_classes = [
         IsAuthenticated,
@@ -330,15 +274,9 @@ class NoticeApproveAPIView(
         # GET USER COMMUNITY ACCESS
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Notice.objects.all()
 
@@ -427,19 +365,13 @@ class NoticeRejectAPIView(
         # CHECK SUPER ADMIN
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # GET ACCESSIBLE NOTICES
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Notice.objects.all()
 
@@ -528,19 +460,13 @@ class NoticeAcknowledgeAPIView(
         # CHECK SUPER ADMIN
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # GET USER COMMUNITIES
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Notice.objects.filter(
                 status="APPROVED"
@@ -618,9 +544,7 @@ class NoticeAcknowledgeAPIView(
         )
 
 
-class AnnouncementView(
-    APIView
-):
+class AnnouncementView(APIView):
 
     permission_classes = [
         IsAuthenticated,
@@ -640,11 +564,7 @@ class AnnouncementView(
 
         # SUPER ADMIN
 
-        if UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists():
+        if is_super_admin(user):
 
             announcements = (
                 Announcement.objects.filter(
@@ -697,17 +617,11 @@ class AnnouncementView(
 
             # SUPER ADMIN
 
-            is_super_admin = (
-                UserCommunityRole.objects.filter(
-                    user=user,
-                    role__code="SUPER_ADMIN",
-                    is_active=True
-                ).exists()
-            )
+            user_is_super_admin = is_super_admin(user)
 
             # NORMAL USER COMMUNITY CHECK
 
-            if not is_super_admin:
+            if not user_is_super_admin:
 
                 community_ids = get_user_communities(
                     user
@@ -764,11 +678,7 @@ class AnnouncementDetailView(
         user = request.user
 
         # SUPER ADMIN
-        if UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists():
+        if is_super_admin(user):
 
             queryset = Announcement.objects.filter(
                 is_active=True
@@ -819,15 +729,9 @@ class AnnouncementDetailView(
         user = request.user
 
         # SUPER ADMIN
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Announcement.objects.all()
 
@@ -868,10 +772,6 @@ class AnnouncementDetailView(
 
         if serializer.is_valid():
 
-            # ======================================
-            # CHECK COMMUNITY CHANGE
-            # ======================================
-
             new_community = (
                 serializer.validated_data.get(
                     "community"
@@ -880,7 +780,7 @@ class AnnouncementDetailView(
 
             if (
                 new_community
-                and not is_super_admin
+                and not user_is_super_admin
             ):
 
                 community_ids = get_user_communities(
@@ -918,15 +818,9 @@ class AnnouncementDetailView(
         user = request.user
 
         # SUPER ADMIN
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             queryset = Announcement.objects.all()
 

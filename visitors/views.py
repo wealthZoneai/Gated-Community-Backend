@@ -2,8 +2,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 
-from community.models import HomeMembership
-from access.models import UserCommunityRole
+from access.services import (
+    get_user_communities,
+    is_super_admin,
+)
 
 from django.db.models import Q
 
@@ -13,55 +15,12 @@ from . import services
 
 from .permissions import IsAuthenticatedUser
 
-
-def get_user_communities(user):
-
-    communities = set()
-
-    # Communities from UserCommunityRole
-    role_communities = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            is_active=True
-        ).values_list(
-            "community_id",
-            flat=True
-        )
-    )
-
-    communities.update(role_communities)
-
-    # Communities from HomeMembership
-    home_communities = (
-        HomeMembership.objects.filter(
-            user=user,
-            status="ACTIVE"
-        ).values_list(
-            "home__block__community_id",
-            flat=True
-        )
-    )
-
-    communities.update(home_communities)
-
-    return communities
-
-# --------------------------------------------------
 # VISITORS
-# --------------------------------------------------
 
-
-# --------------------------------------------------
-# VISITORS
-# --------------------------------------------------
 
 @api_view(["GET", "POST"])
 # @permission_classes([IsAuthenticatedUser])
 def visitors(request):
-
-    # ==========================================
-    # GET VISITORS
-    # ==========================================
 
     if request.method == "GET":
 
@@ -71,19 +30,13 @@ def visitors(request):
         # SUPER ADMIN CHECK
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # SUPER ADMIN
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             visitor_list = (
                 models.Visitor.objects.all()
@@ -157,19 +110,13 @@ def gate_passes(request):
         # SUPER ADMIN
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # GET GATE PASSES
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             pass_list = (
                 models.GatePass.objects
@@ -279,23 +226,11 @@ def check_gate_pass(request, pass_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # ==========================================
-    # SUPER ADMIN CHECK
-    # ==========================================
+    user_is_super_admin = is_super_admin(user)
 
-    is_super_admin = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
-    )
-
-    # ==========================================
     # COMMUNITY ACCESS CHECK
-    # ==========================================
 
-    if not is_super_admin:
+    if not user_is_super_admin:
 
         community_ids = get_user_communities(user)
 
@@ -313,9 +248,8 @@ def check_gate_pass(request, pass_id):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-    # ==========================================
     # CHECK GATE PASS STATUS
-    # ==========================================
+# ==========================================
 
     gate_pass, message = (
         services.check_gate_pass_status(
@@ -381,23 +315,11 @@ def approval_requests(request):
 
         user = request.user
 
-        # ==========================================
-        # SUPER ADMIN
-        # ==========================================
+        user_is_super_admin = is_super_admin(user)
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
-
-        # ==========================================
         # GET APPROVAL REQUESTS
         # ==========================================
-
-        if is_super_admin:
+        if user_is_super_admin:
 
             request_list = (
                 models.ApprovalRequest.objects
@@ -471,25 +393,16 @@ def approval_requests(request):
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST
     )
-
-
-# --------------------------------------------------
+# ----------------------------------------------
 # APPROVAL DECISION
 # --------------------------------------------------
 
-# --------------------------------------------------
-# APPROVAL DECISION
-# --------------------------------------------------
 
 @api_view(["POST"])
 # @permission_classes([IsAuthenticatedUser])
 def approval_decision(request, request_id):
 
     user = request.user
-
-    # ==========================================
-    # GET APPROVAL REQUEST
-    # ==========================================
 
     approval_request = (
         models.ApprovalRequest.objects
@@ -512,19 +425,13 @@ def approval_decision(request, request_id):
     # SUPER ADMIN CHECK
     # ==========================================
 
-    is_super_admin = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
-    )
+    user_is_super_admin = is_super_admin(user)
 
     # ==========================================
     # COMMUNITY ACCESS CHECK
     # ==========================================
 
-    if not is_super_admin:
+    if not user_is_super_admin:
 
         community_ids = get_user_communities(
             user
@@ -614,19 +521,13 @@ def gates(request):
         # SUPER ADMIN CHECK
         # ==========================================
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
         # ==========================================
         # GET GATES
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             gate_list = (
                 models.Gate.objects
@@ -671,15 +572,9 @@ def gates(request):
             "community"
         )
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
+        user_is_super_admin = is_super_admin(user)
 
-        if not is_super_admin:
+        if not user_is_super_admin:
 
             community_ids = get_user_communities(
                 user
@@ -721,23 +616,12 @@ def gate_logs(request):
 
         user = request.user
 
-        # ==========================================
-        # SUPER ADMIN CHECK
-        # ==========================================
+        user_is_super_admin = is_super_admin(user)
 
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
-
-        # ==========================================
         # GET LOGS
         # ==========================================
 
-        if is_super_admin:
+        if user_is_super_admin:
 
             logs = (
                 models.GateLog.objects
@@ -773,10 +657,6 @@ def gate_logs(request):
                 .order_by("-timestamp")
             )
 
-        # ==========================================
-        # SERIALIZE RESPONSE
-        # ==========================================
-
         serializer = serializers.GateLogSerializer(
             logs,
             many=True
@@ -796,31 +676,15 @@ def gate_logs(request):
 
         user = request.user
 
-        # ==========================================
-        # GET GATE PASS
-        # ==========================================
-
         gate_pass = (
             serializer.validated_data["gate_pass"]
         )
+        user_is_super_admin = is_super_admin(user)
 
-        # ==========================================
-        # SUPER ADMIN CHECK
-        # ==========================================
-
-        is_super_admin = (
-            UserCommunityRole.objects.filter(
-                user=user,
-                role__code="SUPER_ADMIN",
-                is_active=True
-            ).exists()
-        )
-
-        # ==========================================
         # COMMUNITY ACCESS CHECK
         # ==========================================
 
-        if not is_super_admin:
+        if not user_is_super_admin:
 
             community_ids = get_user_communities(
                 user
@@ -894,23 +758,12 @@ def audit_logs(request):
 
     user = request.user
 
-    # ==========================================
     # SUPER ADMIN CHECK
     # ==========================================
 
-    is_super_admin = (
-        UserCommunityRole.objects.filter(
-            user=user,
-            role__code="SUPER_ADMIN",
-            is_active=True
-        ).exists()
-    )
+    user_is_super_admin = is_super_admin(user)
 
-    # ==========================================
-    # SUPER ADMIN
-    # ==========================================
-
-    if is_super_admin:
+    if user_is_super_admin:
 
         logs = (
             models.AuditLog.objects
@@ -970,26 +823,26 @@ def audit_logs(request):
     # ==========================================
 
     logs = (
-    models.AuditLog.objects
-    .select_related("actor")
-    .filter(
-        Q(
-            target_type="GatePass",
-            target_id__in=gate_pass_ids
+        models.AuditLog.objects
+        .select_related("actor")
+        .filter(
+            Q(
+                target_type="GatePass",
+                target_id__in=gate_pass_ids
+            )
+            |
+            Q(
+                target_type="ApprovalRequest",
+                target_id__in=approval_request_ids
+            )
+            |
+            Q(
+                target_type="GateLog",
+                target_id__in=gate_log_ids
+            )
         )
-        |
-        Q(
-            target_type="ApprovalRequest",
-            target_id__in=approval_request_ids
-        )
-        |
-        Q(
-            target_type="GateLog",
-            target_id__in=gate_log_ids
-        )
+        .order_by("-timestamp")
     )
-    .order_by("-timestamp")
-)
 
     serializer = serializers.AuditLogSerializer(
         logs,

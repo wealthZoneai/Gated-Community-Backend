@@ -73,3 +73,38 @@ def has_community_access(user, community_id):
         return True
 
     return community_id in get_user_communities(user)
+
+# ==========================================
+# CHECK SUPER ADMIN
+# ==========================================
+
+def is_super_admin(user):
+
+    if not user or not user.is_authenticated:
+        return False
+
+    return UserCommunityRole.objects.filter(
+        user=user,
+        role__code="SUPER_ADMIN",
+        is_active=True
+    ).exists()
+
+
+# ==========================================
+# CHECK COMMUNITY ADMIN
+# ==========================================
+
+def is_community_admin(user, community):
+
+    if not user or not user.is_authenticated:
+        return False
+
+    if not community:
+        return False
+
+    return UserCommunityRole.objects.filter(
+        user=user,
+        community=community,
+        role__code="COMMUNITY_ADMIN",
+        is_active=True
+    ).exists()
